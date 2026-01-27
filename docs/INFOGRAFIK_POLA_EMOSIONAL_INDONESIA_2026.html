@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infografik: Pola Emosional Relasi Indonesia 2026</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --color-red: #C05640;
+            --color-yellow: #D99E30;
+            --color-green: #5D8A66;
+            --color-blue: #5B8FA8;
+            --color-dark: #1a1a2e;
+            --color-light: #f8f9fa;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 40px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        .header h1 {
+            font-family: 'Merriweather', serif;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, var(--color-yellow), var(--color-red));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .header .subtitle {
+            font-size: 1.2rem;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .header .badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.1);
+            padding: 8px 20px;
+            border-radius: 20px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+        
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 50px;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 25px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .stat-card .number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--color-yellow);
+        }
+        
+        .stat-card .label {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.7);
+            margin-top: 5px;
+        }
+        
+        /* Section */
+        .section {
+            margin-bottom: 50px;
+        }
+        
+        .section-title {
+            font-family: 'Merriweather', serif;
+            font-size: 1.5rem;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 30px;
+            background: var(--color-yellow);
+            border-radius: 2px;
+        }
+        
+        /* Distribution Charts */
+        .distribution-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        .distribution-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .distribution-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            color: rgba(255,255,255,0.9);
+        }
+        
+        .bar-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .bar-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .bar-label {
+            width: 100px;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .bar-container {
+            flex: 1;
+            height: 30px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .bar-fill {
+            height: 100%;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: width 1s ease;
+        }
+        
+        .bar-fill.validation { background: linear-gradient(90deg, var(--color-yellow), #f0b429); }
+        .bar-fill.harmony { background: linear-gradient(90deg, var(--color-green), #6bc17a); }
+        .bar-fill.control { background: linear-gradient(90deg, var(--color-red), #e0755d); }
+        .bar-fill.autonomy { background: linear-gradient(90deg, var(--color-blue), #7fb3c8); }
+        
+        .bar-fill.avoid { background: linear-gradient(90deg, var(--color-blue), #7fb3c8); }
+        .bar-fill.appease { background: linear-gradient(90deg, var(--color-green), #6bc17a); }
+        .bar-fill.freeze { background: linear-gradient(90deg, #6c757d, #8e99a4); }
+        .bar-fill.attack { background: linear-gradient(90deg, var(--color-red), #e0755d); }
+        
+        /* Matrix Heatmap */
+        .matrix-container {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow-x: auto;
+        }
+        
+        .matrix-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 4px;
+        }
+        
+        .matrix-table th {
+            padding: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .matrix-table td {
+            padding: 15px;
+            text-align: center;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .matrix-table .row-header {
+            text-align: left;
+            color: rgba(255,255,255,0.8);
+            background: transparent;
+        }
+        
+        .heat-0 { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.5); }
+        .heat-1 { background: rgba(217, 158, 48, 0.2); color: rgba(255,255,255,0.8); }
+        .heat-2 { background: rgba(217, 158, 48, 0.4); color: white; }
+        .heat-3 { background: rgba(217, 158, 48, 0.6); color: white; }
+        .heat-4 { background: rgba(217, 158, 48, 0.8); color: white; }
+        .heat-5 { background: rgba(217, 158, 48, 1); color: white; }
+        
+        /* Insight Cards */
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        
+        .insight-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            gap: 15px;
+        }
+        
+        .insight-number {
+            width: 40px;
+            height: 40px;
+            background: var(--color-yellow);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--color-dark);
+            flex-shrink: 0;
+        }
+        
+        .insight-content h4 {
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+        
+        .insight-content p {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.7);
+            line-height: 1.5;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .footer .logo {
+            font-family: 'Merriweather', serif;
+            font-size: 1.2rem;
+            color: var(--color-yellow);
+            margin-bottom: 10px;
+        }
+        
+        .footer .disclaimer {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.5);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+                color: #1a1a2e;
+                padding: 20px;
+            }
+            
+            .header h1 {
+                color: var(--color-dark);
+                -webkit-text-fill-color: var(--color-dark);
+            }
+            
+            .stat-card, .distribution-card, .matrix-container, .insight-card {
+                background: #f8f9fa;
+                border-color: #dee2e6;
+            }
+            
+            .stat-card .number {
+                color: var(--color-red);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>POLA EMOSIONAL RELASI INDONESIA 2026</h1>
+            <p class="subtitle">Membaca Kebutuhan, Konflik, dan Dinamika Relasi Masyarakat Indonesia</p>
+            <span class="badge">📊 Data dari >10.000 Responden Anonim</span>
+        </header>
+        
+        <!-- Key Stats -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="number">34.2%</div>
+                <div class="label">Butuh Validasi</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">38.7%</div>
+                <div class="label">Menghindar Konflik</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">67.1%</div>
+                <div class="label">Avoid-Centric</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">18.4%</div>
+                <div class="label">Kombinasi Risiko</div>
+            </div>
+        </div>
+        
+        <!-- Distribution Charts -->
+        <section class="section">
+            <h2 class="section-title">Distribusi Kebutuhan & Konflik</h2>
+            <div class="distribution-grid">
+                <!-- Need Distribution -->
+                <div class="distribution-card">
+                    <h3>🎯 Kebutuhan Emosional Utama</h3>
+                    <div class="bar-chart">
+                        <div class="bar-item">
+                            <span class="bar-label">Validasi</span>
+                            <div class="bar-container">
+                                <div class="bar-fill validation" style="width: 85%;">34.2%</div>
+                            </div>
+                        </div>
+                        <div class="bar-item">
+                            <span class="bar-label">Harmoni</span>
+                            <div class="bar-container">
+                                <div class="bar-fill harmony" style="width: 67%;">26.8%</div>
+                            </div>
+                        </div>
+                        <div class="bar-item">
+                            <span class="bar-label">Kontrol</span>
+                            <div class="bar-container">
+                                <div class="bar-fill control" style="width: 54%;">21.5%</div>
+                            </div>
+                        </div>
+                        <div class="bar-item">
+                            <span class="bar-label">Otonomi</span>
+                            <div class="bar-container">
+                                <div class="bar-fill autonomy" style="width: 44%;">17.5%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Conflict Distribution -->
+                <div class="distribution-card">
+                    <h3>⚡ Gaya Respons Konflik</h3>
+                    <div class="bar-chart">
+                        <div class="bar-item">
+                            <span class="bar-label">Menghindar</span>
+                            <div class="bar-container">
+                                <div class="bar-fill avoid" style="width: 97%;">38.7%</div>
+                            </div>
+                        </div>
+                        <div class="bar-item">
+                            <span class="bar-label">Mengalah</span>
+                            <div class="bar-container">
+                                <div class="bar-fill appease" style="width: 71%;">28.4%</div>
+                            </div>
+                        </div>
+                        <div class="bar-item">
+                            <span class="bar-label">Membeku</span>
+                            <div class="bar-container">
+                                <div class="bar-fill freeze" style="width: 48%;">19.3%</div>
+                            </div>
+                        </div>
+                        <div class="bar-item">
+                            <span class="bar-label">Menyerang</span>
+                            <div class="bar-container">
+                                <div class="bar-fill attack" style="width: 34%;">13.6%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Heatmap Matrix -->
+        <section class="section">
+            <h2 class="section-title">Matriks Need × Conflict</h2>
+            <div class="matrix-container">
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Menghindar</th>
+                            <th>Mengalah</th>
+                            <th>Membeku</th>
+                            <th>Menyerang</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="row-header">🟡 Validasi</td>
+                            <td class="heat-5">18.4%</td>
+                            <td class="heat-3">11.2%</td>
+                            <td class="heat-1">3.1%</td>
+                            <td class="heat-0">1.5%</td>
+                        </tr>
+                        <tr>
+                            <td class="row-header">🟢 Harmoni</td>
+                            <td class="heat-4">12.3%</td>
+                            <td class="heat-3">10.8%</td>
+                            <td class="heat-1">2.4%</td>
+                            <td class="heat-0">1.3%</td>
+                        </tr>
+                        <tr>
+                            <td class="row-header">🔴 Kontrol</td>
+                            <td class="heat-1">4.7%</td>
+                            <td class="heat-1">3.9%</td>
+                            <td class="heat-2">4.2%</td>
+                            <td class="heat-3">8.7%</td>
+                        </tr>
+                        <tr>
+                            <td class="row-header">🔵 Otonomi</td>
+                            <td class="heat-1">3.3%</td>
+                            <td class="heat-1">2.5%</td>
+                            <td class="heat-3">9.6%</td>
+                            <td class="heat-1">2.1%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        
+        <!-- Key Insights -->
+        <section class="section">
+            <h2 class="section-title">5 Insight Utama</h2>
+            <div class="insights-grid">
+                <div class="insight-card">
+                    <div class="insight-number">1</div>
+                    <div class="insight-content">
+                        <h4>Dominasi Kebutuhan Validasi</h4>
+                        <p>34.2% masyarakat Indonesia memiliki kebutuhan utama untuk diakui dan dihargai — mencerminkan budaya kolektivis yang menekankan pengakuan sosial.</p>
+                    </div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-number">2</div>
+                    <div class="insight-content">
+                        <h4>Pola Menghindar Dominan</h4>
+                        <p>38.7% cenderung menghindari konflik langsung — mencerminkan nilai budaya "menjaga muka" namun berisiko menumpuk konflik laten.</p>
+                    </div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-number">3</div>
+                    <div class="insight-content">
+                        <h4>Kombinasi Risiko Tertinggi</h4>
+                        <p>18.4% memiliki kombinasi Validasi + Menghindar — menciptakan siklus kekecewaan yang tidak terungkap dan risiko burnout.</p>
+                    </div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-number">4</div>
+                    <div class="insight-content">
+                        <h4>Gap Generasi dalam Ekspresi</h4>
+                        <p>Generasi muda (18-30) menunjukkan kebutuhan otonomi 23% lebih tinggi — menjadi sumber potensial konflik intergenerasi.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="logo">Relasi4Warna Research Division</div>
+            <p class="disclaimer">
+                Whitepaper ini bertujuan edukatif dan reflektif. Bukan alat diagnosis, terapi, atau pengganti bantuan profesional.
+                Data bersifat agregat dan anonim. © 2026 Relasi4Warna
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

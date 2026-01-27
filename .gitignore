@@ -1,0 +1,109 @@
+# =====================================================
+# EMERGENT PLATFORM (DO NOT COMMIT)
+# =====================================================
+.emergent/
+.gitconfig
+
+# =====================================================
+# SYMLINKS (local dev only)
+# =====================================================
+/backend
+/frontend
+
+# =====================================================
+# ENVIRONMENT FILES (NEVER COMMIT SECRETS)
+# =====================================================
+.env
+*.env
+.env.*
+!.env.example
+!.env.production.example
+apps/api/.env
+apps/web/.env
+
+# =====================================================
+# SECRETS & CREDENTIALS
+# =====================================================
+*.pem
+*.key
+*.crt
+**/secrets/*
+credentials.json
+service-account*.json
+
+# =====================================================
+# PYTHON
+# =====================================================
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+venv/
+.venv/
+*.egg-info/
+
+# =====================================================
+# NODE / FRONTEND
+# =====================================================
+node_modules/
+dist/
+build/
+.next/
+*.tsbuildinfo
+
+# =====================================================
+# DOCKER / RUNTIME
+# =====================================================
+*.log
+docker-data/
+mongo-data/
+
+# =====================================================
+# OS / EDITORS
+# =====================================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =====================================================
+# REPORT OUTPUTS / ARTIFACTS
+# =====================================================
+*.pdf
+test_reports/
+coverage/
+apps/web/node_modules/.cache/default-development/3.pack
+apps/web/node_modules/.cache/default-development/11.pack
+-e 
+# Environment files
+*.env
+*.env.*
+-e 
+# Environment files
+*.env
+*.env.*
+apps/web/node_modules/.cache/default-development/8.pack
+-e 
+# Environment files
+*.env
+*.env.*
+apps/web/node_modules/.cache/default-development/0.pack
+apps/web/node_modules/.cache/default-development/1.pack
+apps/web/node_modules/.cache/default-development/2.pack
+apps/web/node_modules/.cache/default-development/4.pack
+apps/web/node_modules/.cache/default-development/5.pack
+apps/web/node_modules/.cache/default-development/6.pack
+-e 
+# Environment files
+*.env
+*.env.*
+-e 
+# Environment files
+*.env
+*.env.*

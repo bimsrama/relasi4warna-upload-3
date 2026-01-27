@@ -1,0 +1,203 @@
+# ===========================================
+# Relasi4Warna - CI Pipeline
+# ===========================================
+# Runs on: push to main/develop, PRs to main
+# Fails fast: Pipeline will stop on first error
+# ===========================================
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  # ===========================================
+  # Backend: Lint, Test, Verify
+  # ===========================================
+  backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:6
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ping:1})'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: apps/api/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r apps/api/requirements.txt
+          pip install pytest pytest-asyncio ruff
+
+      - name: Lint with Ruff
+        run: ruff check apps/api/ --ignore E501,E402,F841,F401
+
+      - name: Verify imports (syntax check)
+        run: python -m compileall apps/api/
+
+      - name: Run tests
+        run: |
+          export PYTHONPATH="${PYTHONPATH}:${PWD}:${PWD}/packages:${PWD}/apps/api"
+          cd apps/api
+          python -m pytest tests/test_unit.py -v --tb=short
+        env:
+          MONGO_URL: mongodb://localhost:27017/test
+          DB_NAME: test
+          JWT_SECRET: test-secret-key-for-ci-minimum-32-characters
+          OPENAI_API_KEY: dummy-openai-key-for-ci
+
+      - name: Verify server imports
+        run: |
+          export PYTHONPATH="${PYTHONPATH}:${PWD}:${PWD}/packages:${PWD}/apps/api"
+          cd apps/api
+          python -c "from server import app; print('Server imports: OK')"
+          python -c "from services.llm_provider import get_llm_provider; print('LLM Provider: OK')"
+        env:
+          MONGO_URL: mongodb://localhost:27017/test
+          DB_NAME: test
+          JWT_SECRET: test-secret
+          OPENAI_API_KEY: dummy-openai-key
+
+  # ===========================================
+  # Frontend: Lint, Build
+  # ===========================================
+  frontend:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+          cache-dependency-path: apps/web/yarn.lock
+
+      - name: Install dependencies
+        run: |
+          cd apps/web
+          yarn install --frozen-lockfile
+
+      - name: Lint
+        run: |
+          cd apps/web
+          yarn lint
+
+      - name: Build
+        run: |
+          cd apps/web
+          yarn build
+        env:
+          REACT_APP_BACKEND_URL: http://localhost:8001
+          CI: false
+
+      - name: Verify build output
+        run: |
+          test -f apps/web/build/index.html
+          test -d apps/web/build/static
+          echo "Build verification: OK"
+
+  # ===========================================
+  # Docker: Build Images
+  # ===========================================
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./infra/docker/Dockerfile.backend
+          push: false
+          tags: relasi-backend:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./infra/docker/Dockerfile.frontend
+          push: false
+          tags: relasi-frontend:test
+          build-args: |
+            REACT_APP_BACKEND_URL=http://localhost:8001
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===========================================
+  # Integration: Full Stack Test
+  # ===========================================
+  integration:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    needs: [docker]
+    if: github.event_name == 'push'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create test env file
+        run: |
+          cat > .env << 'EOF'
+          MONGO_URL=mongodb://mongo:27017/relasi4warna
+          DB_NAME=relasi4warna
+          JWT_SECRET=test-jwt-secret-for-integration-tests
+          OPENAI_API_KEY=dummy-openai-key-not-real
+          MIDTRANS_SERVER_KEY=test-server-key
+          MIDTRANS_CLIENT_KEY=test-client-key
+          MIDTRANS_MERCHANT_ID=test-merchant
+          MIDTRANS_IS_PRODUCTION=false
+          REACT_APP_BACKEND_URL=http://localhost:8001
+          EOF
+
+      - name: Start services
+        run: |
+          docker compose up -d mongo backend
+          sleep 30
+
+      - name: Health check
+        run: |
+          curl -f http://localhost:8001/api/health
+          echo "Health check: OK"
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v

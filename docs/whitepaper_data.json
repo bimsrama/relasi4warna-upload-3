@@ -1,0 +1,151 @@
+{
+  "generated_at": "2026-01-27T00:31:39.514443",
+  "data_status": "simulated",
+  "sample_sizes": {
+    "total_users": 1,
+    "total_assessments_r4": 0,
+    "total_assessments_old": 0,
+    "total_reports": 0,
+    "total_couple_reports": 0,
+    "total_family_groups": 0,
+    "analytics_events": 0,
+    "total_assessments": 0
+  },
+  "distributions": {
+    "needs": {
+      "need_validation": {
+        "count": 0,
+        "percentage": 0
+      },
+      "need_harmony": {
+        "count": 0,
+        "percentage": 0
+      },
+      "need_control": {
+        "count": 0,
+        "percentage": 0
+      },
+      "need_autonomy": {
+        "count": 0,
+        "percentage": 0
+      },
+      "_total": 0
+    },
+    "conflicts": {
+      "conflict_avoid": {
+        "count": 0,
+        "percentage": 0
+      },
+      "conflict_appease": {
+        "count": 0,
+        "percentage": 0
+      },
+      "conflict_freeze": {
+        "count": 0,
+        "percentage": 0
+      },
+      "conflict_attack": {
+        "count": 0,
+        "percentage": 0
+      },
+      "_total": 0
+    },
+    "colors": {
+      "color_red": {
+        "count": 0,
+        "percentage": 0
+      },
+      "color_yellow": {
+        "count": 0,
+        "percentage": 0
+      },
+      "color_green": {
+        "count": 0,
+        "percentage": 0
+      },
+      "color_blue": {
+        "count": 0,
+        "percentage": 0
+      },
+      "_total": 0
+    }
+  },
+  "matrices": {
+    "need_conflict": {
+      "need_validation": {
+        "conflict_avoid": {
+          "count": 0,
+          "percentage": 0
+        },
+        "conflict_appease": {
+          "count": 0,
+          "percentage": 0
+        },
+        "conflict_freeze": {
+          "count": 0,
+          "percentage": 0
+        },
+        "conflict_attack": {
+          "count": 0,
+          "percentage": 0
+        }
+      },
+      "need_harmony": {
+        "conflict_avoid": {
+          "count": 0,
+          "percentage": 0
+        },
+        "conflict_appease": {
+          "count": 0,
+          "percentage": 0
+        },
+        "conflict_freeze": {
+          "count": 0,
+          "percentage": 0
+        },
+        "conflict_attack": {
+          "count": 0,
+          "percentage": 0
+        }
+      },
+      "need_control": {
+        "conflict_avoid": {
+          "count": 0,
+          "percentage": 0
+        },
+        "conflict_appease": {
+          "count": 0,
+          "percentage": 0
+        },
+        "conflict_freeze": {
+          "count": 0,
+          "percentage": 0
+        },
+        "conflict_attack": {
+          "count": 0,
+          "percentage": 0
+        }
+      },
+      "need_autonomy": {
+        "conflict_avoid": {
+          "count": 0,
+          "percentage": 0
+        },
+        "conflict_appease": {
+          "count": 0,
+          "percentage": 0
+        },
+        "conflict_freeze": {
+          "count": 0,
+          "percentage": 0
+        },
+        "conflict_attack": {
+          "count": 0,
+          "percentage": 0
+        }
+      },
+      "_total": 0
+    }
+  },
+  "trends": {}
+}
