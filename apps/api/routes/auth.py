@@ -2,7 +2,8 @@
 import uuid
 import os
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi.responses import RedirectResponse
 from models.schemas import UserRegister, UserLogin, PasswordReset, PasswordResetConfirm, GoogleAuthRequest
 from utils.database import db
 from utils.auth import (
@@ -12,20 +13,21 @@ from utils.auth import (
 import jwt
 import httpx
 
+# Router tetap menggunakan prefix /auth, sehingga total path: /api/auth
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 
+# --- ENDPOINT REGISTER & LOGIN (TETAP) ---
+
 @router.post("/register")
 async def register(user_data: UserRegister):
     """Register a new user"""
-    # Check if email exists
     existing = await db.users.find_one({"email": user_data.email.lower()})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Create user
     user_id = f"user_{uuid.uuid4().hex[:12]}"
     user = {
         "user_id": user_id,
@@ -37,9 +39,7 @@ async def register(user_data: UserRegister):
     }
     await db.users.insert_one(user)
     
-    # Generate token
     token = create_access_token({"user_id": user_id})
-    
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -62,7 +62,6 @@ async def login(user_data: UserLogin):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
     token = create_access_token({"user_id": user["user_id"]})
-    
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -79,20 +78,38 @@ async def get_me(user=Depends(get_current_user)):
     """Get current user info"""
     return user
 
-@router.post("/google")
-async def google_auth(data: GoogleAuthRequest):
-    """Authenticate with Google OAuth"""
+# --- PERBAIKAN GOOGLE AUTH (GET METHOD & PATH /google/login) ---
+
+@router.get("/google/login")
+async def google_auth(request: Request):
+    """Authenticate with Google OAuth via GET"""
+    # Mengambil 'code' dari query parameter (dikirim otomatis oleh Google setelah redirect)
+    code = request.query_params.get("code")
+    # Redirect URI harus sama dengan yang didaftarkan di Google Console
+    redirect_uri = "https://relasi4warna.com/api/auth/google/login"
+
+    # Tahap 1: Jika tidak ada code, redirect user ke Google Consent Screen
+    if not code:
+        google_url = (
+            f"https://accounts.google.com/o/oauth2/v2/auth?"
+            f"client_id={GOOGLE_CLIENT_ID}&"
+            f"redirect_uri={redirect_uri}&"
+            f"response_type=code&"
+            f"scope=openid%20email%20profile"
+        )
+        return RedirectResponse(url=google_url)
+
+    # Tahap 2: Jika ada code, tukarkan dengan Token
     try:
-        # Exchange code for tokens
         async with httpx.AsyncClient() as client:
             token_response = await client.post(
                 "https://oauth2.googleapis.com/token",
                 data={
                     "client_id": GOOGLE_CLIENT_ID,
                     "client_secret": GOOGLE_CLIENT_SECRET,
-                    "code": data.code,
+                    "code": code,
                     "grant_type": "authorization_code",
-                    "redirect_uri": data.redirect_uri
+                    "redirect_uri": redirect_uri
                 }
             )
             tokens = token_response.json()
@@ -100,7 +117,7 @@ async def google_auth(data: GoogleAuthRequest):
             if "error" in tokens:
                 raise HTTPException(status_code=400, detail=tokens.get("error_description", "Google auth failed"))
             
-            # Get user info
+            # Ambil info user menggunakan Access Token
             userinfo_response = await client.get(
                 "https://www.googleapis.com/oauth2/v2/userinfo",
                 headers={"Authorization": f"Bearer {tokens['access_token']}"}
@@ -111,7 +128,7 @@ async def google_auth(data: GoogleAuthRequest):
         if not email:
             raise HTTPException(status_code=400, detail="Could not get email from Google")
         
-        # Find or create user
+        # Cari atau buat user baru di Database
         user = await db.users.find_one({"email": email})
         if not user:
             user_id = f"user_{uuid.uuid4().hex[:12]}"
@@ -128,7 +145,6 @@ async def google_auth(data: GoogleAuthRequest):
             await db.users.insert_one(user)
         else:
             user_id = user["user_id"]
-            # Update Google info
             await db.users.update_one(
                 {"user_id": user_id},
                 {"$set": {
@@ -138,34 +154,25 @@ async def google_auth(data: GoogleAuthRequest):
                 }}
             )
         
+        # Buat token akses lokal (JWT)
         token = create_access_token({"user_id": user_id})
         
-        return {
-            "access_token": token,
-            "token_type": "bearer",
-            "user": {
-                "user_id": user_id,
-                "email": email,
-                "name": user.get("name", ""),
-                "avatar": user.get("avatar", userinfo.get("picture")),
-                "is_admin": user.get("is_admin", False)
-            }
-        }
+        # Redirect kembali ke Frontend dengan membawa token
+        frontend_url = f"https://relasi4warna.com/login?token={token}"
+        return RedirectResponse(url=frontend_url)
         
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Google authentication failed: {str(e)}")
+
+# --- ENDPOINT PASSWORD RESET (TETAP) ---
 
 @router.post("/request-reset")
 async def request_password_reset(data: PasswordReset):
     """Request a password reset email"""
     user = await db.users.find_one({"email": data.email.lower()})
     if not user:
-        # Don't reveal if email exists
         return {"message": "If email exists, reset link will be sent"}
     
-    # Generate reset token
     reset_token = jwt.encode(
         {
             "user_id": user["user_id"],
@@ -176,7 +183,6 @@ async def request_password_reset(data: PasswordReset):
         algorithm="HS256"
     )
     
-    # Store token
     await db.password_resets.insert_one({
         "user_id": user["user_id"],
         "token": reset_token,
@@ -184,8 +190,6 @@ async def request_password_reset(data: PasswordReset):
         "used": False
     })
     
-    # TODO: Send email with reset link
-    # For now, just return success
     return {"message": "If email exists, reset link will be sent", "token": reset_token}
 
 @router.post("/reset-password")
@@ -197,8 +201,6 @@ async def reset_password(data: PasswordResetConfirm):
             raise HTTPException(status_code=400, detail="Invalid token type")
         
         user_id = payload.get("user_id")
-        
-        # Check if token was used
         reset_record = await db.password_resets.find_one({
             "token": data.token,
             "used": False
@@ -206,13 +208,11 @@ async def reset_password(data: PasswordResetConfirm):
         if not reset_record:
             raise HTTPException(status_code=400, detail="Token invalid or already used")
         
-        # Update password
         await db.users.update_one(
             {"user_id": user_id},
             {"$set": {"password_hash": hash_password(data.new_password)}}
         )
         
-        # Mark token as used
         await db.password_resets.update_one(
             {"token": data.token},
             {"$set": {"used": True}}
