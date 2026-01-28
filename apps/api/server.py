@@ -121,7 +121,7 @@ async def call_ai_gateway(
         language=language
     )
     
-    result = await call_llm_guarded(context, db)
+    result = await call_llm_guarded(context)
     
     if result.status == LLMStatus.BLOCKED:
         if result.blocked_reason == "DAILY_BUDGET_EXCEEDED":
