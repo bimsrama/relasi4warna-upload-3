@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, XCircle, Clock } from 'lucide-react';
 
-const API_URL = process.env.REACT_APP_BACKEND_URL;
+// PERBAIKAN: URL di-hardcode ke HTTPS agar aman dan tidak error Mixed Content
+const API_URL = 'https://relasi4warna.com';
 
 /**
  * BudgetBanner Component
  * Displays a warning/error banner when AI budget is low or exhausted
- * 
- * States:
+ * * States:
  * - ok: No banner shown
  * - warning: Yellow banner, AI capacity is getting low
  * - blocked: Red banner, AI capacity exhausted
