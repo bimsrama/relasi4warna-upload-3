@@ -30,9 +30,9 @@ const LoginPage = () => {
   };
 
   const handleGoogleLogin = () => {
-    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    const redirectUrl = window.location.origin + '/dashboard';
-    // Google OAuth disabled - use email/password auth
+    // PERBAIKAN: Mengarahkan langsung ke endpoint Google Login di Backend
+    // Karena sudah pakai SSL, wajib menggunakan https
+    window.location.href = "https://relasi4warna.com/api/auth/google/login";
   };
 
   return (
