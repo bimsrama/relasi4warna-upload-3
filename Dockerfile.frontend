@@ -1,27 +1,28 @@
 # ===========================================
-# Relasi4Warna Frontend Dockerfile (FIXED FINAL)
+# Relasi4Warna Frontend Dockerfile (FIXED NODE 20)
 # ===========================================
 
 # Stage 1: Build React App
-FROM node:18-alpine AS builder
+# [FIX] Upgrade ke Node 20 agar kompatibel dengan react-router-dom terbaru
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# [FIX 1] Install alat bantu build (WAJIB di Alpine agar tidak Error Exit Code 1)
+# Install alat build (Wajib ada di Alpine)
 RUN apk add --no-cache python3 make g++
 
-# [FIX 2] Hanya copy package.json (Hapus referensi yarn.lock karena file tidak ada)
+# Copy package.json saja (Tanpa yarn.lock)
 COPY apps/web/package.json ./
 
-# Install dependencies (Tanpa frozen-lockfile)
+# Install dependencies
 RUN yarn install --network-timeout 100000
 
-# Copy source code sisanya
+# Copy source code
 COPY apps/web/ ./
 
 # Arguments
 ARG REACT_APP_BACKEND_URL
-ENV REACT_APP_BACKEND_URL=\$REACT_APP_BACKEND_URL
+ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
 ENV CI=false
 ENV NODE_ENV=production
 
@@ -38,14 +39,14 @@ RUN apk add --no-cache curl
 COPY --from=builder /app/build /usr/share/nginx/html
 
 # Set permissions
-RUN chown -R nginx:nginx /usr/share/nginx/html \\
-    && chown -R nginx:nginx /var/cache/nginx \\
-    && chown -R nginx:nginx /var/log/nginx \\
-    && touch /var/run/nginx.pid \\
+RUN chown -R nginx:nginx /usr/share/nginx/html \
+    && chown -R nginx:nginx /var/cache/nginx \
+    && chown -R nginx:nginx /var/log/nginx \
+    && touch /var/run/nginx.pid \
     && chown -R nginx:nginx /var/run/nginx.pid
 
 # Healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \\
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:80/ || exit 1
 
 EXPOSE 80
