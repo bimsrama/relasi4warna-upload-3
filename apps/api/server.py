@@ -7683,12 +7683,37 @@ api_router.include_router(analytics_router)
 api_router.include_router(system_router)
 
 # RELASI4™ Core Engine routes
-from routes.relasi4_routes import relasi4_router, set_dependencies as set_relasi4_deps
-set_relasi4_deps(db, get_current_user)
-api_router.include_router(relasi4_router)
+# Pastikan file routes/relasi4_routes.py memang ada. 
+# Jika file tersebut belum ada di folder Anda, hapus/comment baris import di bawah ini agar tidak error.
+try:
+    from routes.relasi4_routes import relasi4_router
+    api_router.include_router(relasi4_router)
+except ImportError:
+    logger.warning("Module 'routes.relasi4_routes' not found, skipping.")
 
+# 3. Masukkan router utama ke aplikasi FastAPI
 app.include_router(api_router)
+
+# ==================== STARTUP EVENTS ====================
+
+@app.on_event("startup")
+async def startup_db_client():
+    try:
+        # Ping DB untuk memastikan koneksi
+        await client.admin.command('ping')
+        logger.info("Successfully connected to MongoDB Atlas")
+        
+    except Exception as e:
+        logger.error(f"Failed to connect to MongoDB: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+    logger.info("MongoDB connection closed")
+
+if __name__ == "__main__":
+    import uvicorn
+    # Mengambil PORT dari env atau default ke 8000
+    port = int(os.environ.get("PORT", 8000))
+    # Reload=False untuk production agar lebih stabil
+    uvicorn.run("server:app", host="0.0.0.0", port=port, reload=False)
