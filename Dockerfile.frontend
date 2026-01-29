@@ -1,44 +1,65 @@
 # ===========================================
-# Relasi4Warna Frontend Dockerfile (FIXED NODE 20)
+# Relasi4Warna Frontend Dockerfile (FINAL ULTIMATE)
 # ===========================================
 
-# Stage 1: Build React App
-# [FIX] Upgrade ke Node 20 agar kompatibel dengan react-router-dom terbaru
+# Stage 1: Build React App (Pakai Node 20 agar kompatibel library terbaru)
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install alat build (Wajib ada di Alpine)
+# 1. Install alat bantu build (Wajib ada di Alpine untuk compile library tertentu)
 RUN apk add --no-cache python3 make g++
 
-# Copy package.json saja (Tanpa yarn.lock)
+# 2. Copy package.json saja (Hindari copy yarn.lock jika file tidak konsisten)
 COPY apps/web/package.json ./
 
-# Install dependencies
+# 3. Install dependencies dengan timeout panjang & tanpa lockfile ketat
 RUN yarn install --network-timeout 100000
 
-# Copy source code
+# 4. Copy seluruh source code
 COPY apps/web/ ./
 
-# Arguments
+# 5. Masukkan Environment Variables
 ARG REACT_APP_BACKEND_URL
 ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
 ENV CI=false
 ENV NODE_ENV=production
 
-# Build
+# 6. Build Aplikasi React
 RUN yarn build
 
 # Stage 2: Serve with Nginx
 FROM nginx:alpine
 
-# Install curl
+# Install curl untuk healthcheck
 RUN apk add --no-cache curl
 
-# Copy build result
+# Copy hasil build dari Stage 1
 COPY --from=builder /app/build /usr/share/nginx/html
 
-# Set permissions
+# =========================================================
+# [PENTING] KONFIGURASI NGINX UNTUK SPA ROUTING
+# Agar saat refresh di halaman /login atau /dashboard tidak 404
+# =========================================================
+RUN echo 'server { \
+    listen 80; \
+    server_name localhost; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    \
+    # Tangkap semua request, jika file tidak ada, lempar ke index.html \
+    location / { \
+        try_files $uri $uri/ /index.html; \
+    } \
+    \
+    # Cache static files agar cepat \
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ { \
+        expires 1y; \
+        add_header Cache-Control "public, no-transform"; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
+
+# Set permission agar Nginx bisa baca file
 RUN chown -R nginx:nginx /usr/share/nginx/html \
     && chown -R nginx:nginx /var/cache/nginx \
     && chown -R nginx:nginx /var/log/nginx \
