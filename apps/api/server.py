@@ -121,7 +121,7 @@ async def call_ai_gateway(
         language=language
     )
     
-    result = await call_llm_guarded(context)
+    result = await call_llm_guarded(context, db)
     
     if result.status == LLMStatus.BLOCKED:
         if result.blocked_reason == "DAILY_BUDGET_EXCEEDED":
@@ -220,7 +220,12 @@ XENDIT_WEBHOOK_TOKEN = os.environ.get('XENDIT_WEBHOOK_TOKEN', '')
 # Midtrans Config (replacing Xendit)
 MIDTRANS_SERVER_KEY = os.environ.get('MIDTRANS_SERVER_KEY', 'SB-Mid-server-YOUR_SERVER_KEY')
 MIDTRANS_CLIENT_KEY = os.environ.get('MIDTRANS_CLIENT_KEY', 'SB-Mid-client-YOUR_CLIENT_KEY')
-MIDTRANS_IS_PRODUCTION = os.environ.get('MIDTRANS_IS_PRODUCTION', 'False') == 'True'
+# Logic untuk pembacaan True/False dari env agar aman
+MIDTRANS_IS_PRODUCTION = str(os.environ.get('MIDTRANS_IS_PRODUCTION', 'false')).lower() == 'true'
+
+# --- GOOGLE AUTH CONFIG ---
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 
 # Initialize Midtrans Snap
 import midtransclient
@@ -271,6 +276,11 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+# NEW: Model for Google Auth
+class GoogleAuthRequest(BaseModel):
+    code: str
+    redirect_uri: str
 
 class UserResponse(BaseModel):
     user_id: str
@@ -435,24 +445,38 @@ async def get_admin_user(authorization: str = Header(None)):
 
 # ==================== AUTH ROUTES ====================
 
-@auth_router.post("/register", response_model=TokenResponse)
-async def register(data: UserCreate):
-    existing = await db.users.find_one({"email": data.email}, {"_id": 0})
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+@auth_router.post("/login", response_model=TokenResponse)
+async def login(data: UserLogin):
+    # Ambil user dari database
+    user = await db.users.find_one({"email": data.email}, {"_id": 0})
     
-    user_id = f"user_{uuid.uuid4().hex[:12]}"
-    user_doc = {
-        "user_id": user_id,
-        "email": data.email,
-        "password_hash": hash_password(data.password),
-        "name": data.name,
-        "language": data.language,
-        "is_admin": False,
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    await db.users.insert_one(user_doc)
+    # Ambil password hash dengan aman (gunakan .get agar tidak crash jika kosong)
+    password_hash = user.get("password_hash", "") if user else ""
     
+    # Cek user ada DAN password cocok
+    if not user or not verify_password(data.password, password_hash):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Generate token
+    token = create_token(user["user_id"], user["email"])
+    
+    # Siapkan data response (gunakan .get untuk field optional)
+    created_at_val = user.get("created_at", datetime.now(timezone.utc).isoformat())
+    if isinstance(created_at_val, str):
+        created_at_dt = datetime.fromisoformat(created_at_val.replace("Z", "+00:00"))
+    else:
+        created_at_dt = created_at_val
+
+    user_response = UserResponse(
+        user_id=user["user_id"],
+        email=user["email"],
+        name=user.get("name", ""),
+        language=user.get("language", "id"),
+        is_admin=user.get("is_admin", False),
+        tier=user.get("tier", "free"),
+        created_at=created_at_dt
+    )
+    return TokenResponse(access_token=token, user=user_response)    
     token = create_token(user_id, data.email)
     user_response = UserResponse(
         user_id=user_id,
@@ -494,6 +518,109 @@ async def get_me(user=Depends(get_current_user)):
         tier=user.get("tier", "free"),
         created_at=datetime.fromisoformat(user["created_at"]) if isinstance(user["created_at"], str) else user["created_at"]
     )
+
+@auth_router.post("/google")
+async def google_auth(data: GoogleAuthRequest):
+    """Authenticate with Google OAuth"""
+    try:
+        # 1. Exchange code for tokens
+        async with httpx.AsyncClient() as client:
+            token_response = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "client_id": GOOGLE_CLIENT_ID,
+                    "client_secret": GOOGLE_CLIENT_SECRET,
+                    "code": data.code,
+                    "grant_type": "authorization_code",
+                    "redirect_uri": data.redirect_uri
+                }
+            )
+            tokens = token_response.json()
+            
+            if "error" in tokens:
+                raise HTTPException(status_code=400, detail=tokens.get("error_description", "Google auth failed"))
+            
+            # 2. Get user info from Google
+            userinfo_response = await client.get(
+                "https://www.googleapis.com/oauth2/v2/userinfo",
+                headers={"Authorization": f"Bearer {tokens['access_token']}"}
+            )
+            userinfo = userinfo_response.json()
+        
+        email = userinfo.get("email", "").lower()
+        if not email:
+            raise HTTPException(status_code=400, detail="Could not get email from Google")
+        
+        # 3. Find or Create User
+        user = await db.users.find_one({"email": email})
+        if not user:
+            # Register new user
+            user_id = f"user_{uuid.uuid4().hex[:12]}"
+            user_doc = {
+                "user_id": user_id,
+                "email": email,
+                "name": userinfo.get("name", email.split("@")[0]),
+                "google_id": userinfo.get("id"),
+                "avatar": userinfo.get("picture"),
+                "is_admin": False,
+                "tier": "free",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "auth_provider": "google",
+                # Dummy password hash karena user ini login via Google
+                "password_hash": "google_auth_no_password" 
+            }
+            await db.users.insert_one(user_doc)
+            
+            # Siapkan data untuk response
+            user_response = UserResponse(
+                user_id=user_id,
+                email=email,
+                name=user_doc["name"],
+                language="id",
+                is_admin=False,
+                tier="free",
+                created_at=datetime.fromisoformat(user_doc["created_at"])
+            )
+        else:
+            # Update existing user
+            user_id = user["user_id"]
+            await db.users.update_one(
+                {"user_id": user_id},
+                {"$set": {
+                    "google_id": userinfo.get("id"),
+                    "avatar": userinfo.get("picture"),
+                    "last_login": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+            
+            # Siapkan data untuk response
+            created_at_val = user["created_at"]
+            # Handle format tanggal jika string atau datetime object
+            if isinstance(created_at_val, str):
+                created_at_dt = datetime.fromisoformat(created_at_val.replace("Z", "+00:00"))
+            else:
+                created_at_dt = created_at_val
+
+            user_response = UserResponse(
+                user_id=user_id,
+                email=user["email"],
+                name=user["name"],
+                language=user.get("language", "id"),
+                is_admin=user.get("is_admin", False),
+                tier=user.get("tier", "free"),
+                created_at=created_at_dt
+            )
+        
+        # 4. Generate Token (Menggunakan fungsi create_token yang sudah ada)
+        token = create_token(user_id, email)
+        
+        return TokenResponse(access_token=token, user=user_response)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Google auth error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Google authentication failed: {str(e)}")
 
 
 # ==================== PASSWORD RESET ====================
