@@ -35,7 +35,7 @@ services:
       - MONGO_URL=${MONGO_URL:-mongodb://mongo:27017/${DB_NAME:-relasi4warna}}
       - DB_NAME=${DB_NAME:-relasi4warna}
       - JWT_SECRET=${JWT_SECRET}
-      # UPDATE 1: Tambahkan domain HTTPS ke CORS
+      # UPDATE 1: Perbaikan format CORS
       - CORS_ORIGINS=${CORS_ORIGINS:-https://relasi4warna.com,http://localhost:3000}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL_PREMIUM=${OPENAI_MODEL_PREMIUM:-gpt-4o}
@@ -47,29 +47,32 @@ services:
       - MIDTRANS_CLIENT_KEY=${MIDTRANS_CLIENT_KEY}
       - MIDTRANS_MERCHANT_ID=${MIDTRANS_MERCHANT_ID}
       - MIDTRANS_IS_PRODUCTION=${MIDTRANS_IS_PRODUCTION:-False}
-      # UPDATE 2: Ubah APP_URL ke HTTPS (Penting untuk Google Auth Redirect)
+      # UPDATE 2: Pastikan APP_URL HTTPS
       - APP_URL=${APP_URL:-https://relasi4warna.com}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - SENDER_EMAIL=${SENDER_EMAIL:-noreply@relasi4warna.com}
+      # UPDATE 3: Port Explicit
+      - PORT=8000
     networks:
       - relasi4_network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
+      # UPDATE 4: Ubah Healthcheck ke port 8000 agar sesuai Nginx
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
 
   # ===========================================================================
-  # Frontend (React + Nginx)
+  # Frontend (React + Nginx Internal)
   # ===========================================================================
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
       args:
-        # UPDATE 3: Paksa Frontend memakai HTTPS Backend
         - REACT_APP_BACKEND_URL=https://relasi4warna.com
+    container_name: relasi4_frontend
     restart: unless-stopped
     depends_on:
       backend:
@@ -77,6 +80,7 @@ services:
     networks:
       - relasi4_network
     healthcheck:
+      # Healthcheck ke port 80 (Internal Nginx Frontend)
       test: ["CMD", "curl", "-f", "http://localhost:80/health"]
       interval: 30s
       timeout: 10s
@@ -84,7 +88,7 @@ services:
       start_period: 10s
 
   # ===========================================================================
-  # Nginx Reverse Proxy
+  # Nginx Reverse Proxy (Gerbang Utama)
   # ===========================================================================
   nginx:
     image: nginx:alpine
@@ -108,7 +112,7 @@ services:
       retries: 3
 
   # ===========================================================================
-  # RELASI4™ Seed Runner (one-time initialization)
+  # RELASI4™ Seed Runner
   # ===========================================================================
   seed:
     build:
