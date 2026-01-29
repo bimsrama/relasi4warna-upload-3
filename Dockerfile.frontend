@@ -1,31 +1,19 @@
 # ===========================================
-# Relasi4Warna Frontend Dockerfile (FINAL + API PROXY)
+# Relasi4Warna Frontend Dockerfile (UPSTREAM FIX)
 # ===========================================
 
 # Stage 1: Build React App
 FROM node:20-alpine AS builder
 
 WORKDIR /app
-
-# Install alat bantu build
 RUN apk add --no-cache python3 make g++
-
-# Copy package.json
 COPY apps/web/package.json ./
-
-# Install dependencies
 RUN yarn install --network-timeout 100000
-
-# Copy source code
 COPY apps/web/ ./
-
-# Environment Variables
 ARG REACT_APP_BACKEND_URL
 ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
 ENV CI=false
 ENV NODE_ENV=production
-
-# Build
 RUN yarn build
 
 # Stage 2: Serve with Nginx
@@ -38,32 +26,44 @@ RUN apk add --no-cache curl
 COPY --from=builder /app/build /usr/share/nginx/html
 
 # =========================================================
-# CONFIG NGINX: SPA Routing + API Proxy (PENTING!)
+# CONFIG NGINX DENGAN UPSTREAM (Anti 502)
 # =========================================================
-RUN echo 'server { \
+# Kita definisikan grup server bernama "backend_server"
+# Ini membuat koneksi jauh lebih stabil daripada memanggil host langsung
+RUN echo 'upstream backend_server { \
+    server backend:8000; \
+} \
+\
+server { \
     listen 80; \
     server_name localhost; \
     root /usr/share/nginx/html; \
     index index.html; \
     \
-    # 1. Handle React Routing (SPA) \
+    # 1. Handle React Routing \
     location / { \
         try_files $uri $uri/ /index.html; \
     } \
     \
-    # 2. Handle API Calls (Teruskan ke Backend) \
-    # Ini yang memperbaiki error 502 Bad Gateway \
+    # 2. Handle API (Jembatan ke Backend) \
     location /api/ { \
-        proxy_pass http://backend:8000; \
+        # Panggil via upstream yang kita buat diatas \
+        proxy_pass http://backend_server; \
+        \
         proxy_http_version 1.1; \
         proxy_set_header Upgrade $http_upgrade; \
         proxy_set_header Connection "upgrade"; \
         proxy_set_header Host $host; \
         proxy_set_header X-Real-IP $remote_addr; \
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; \
+        \
+        # Timeout settings (Mencegah 502 karena backend lambat) \
+        proxy_connect_timeout 60s; \
+        proxy_send_timeout 60s; \
+        proxy_read_timeout 60s; \
     } \
     \
-    # Cache static files \
+    # 3. Cache Static Files \
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ { \
         expires 1y; \
         add_header Cache-Control "public, no-transform"; \
