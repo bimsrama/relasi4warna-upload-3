@@ -1,11 +1,18 @@
+# ===========================================
+# Relasi4Warna Frontend Dockerfile (FIXED NO LOCKFILE)
+# ===========================================
+
 # Stage 1: Build React App
 FROM node:18-alpine AS builder
+
 WORKDIR /app
 
-# HANYA COPY package.json (yarn.lock dihapus dari sini karena file tidak ada)
+# --- PERBAIKAN DI SINI ---
+# Hanya copy package.json saja (karena yarn.lock tidak ditemukan)
 COPY apps/web/package.json ./
 
-# Install dependencies (Tanpa frozen-lockfile)
+# Install dependencies
+# Hapus '--frozen-lockfile' karena kita tidak punya file lock
 RUN yarn install --network-timeout 100000
 
 # Copy source code sisanya
@@ -22,14 +29,23 @@ RUN yarn build
 
 # Stage 2: Serve with Nginx
 FROM nginx:alpine
+
+# Install curl
 RUN apk add --no-cache curl
+
+# Copy build result
 COPY --from=builder /app/build /usr/share/nginx/html
+
+# Set permissions
 RUN chown -R nginx:nginx /usr/share/nginx/html \
     && chown -R nginx:nginx /var/cache/nginx \
     && chown -R nginx:nginx /var/log/nginx \
     && touch /var/run/nginx.pid \
     && chown -R nginx:nginx /var/run/nginx.pid
+
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:80/ || exit 1
+
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
