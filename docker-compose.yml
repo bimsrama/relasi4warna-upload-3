@@ -27,6 +27,8 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     container_name: relasi4_backend
+    # === PERBAIKAN UTAMA: Paksa server jalan di Port 8000 ===
+    command: uvicorn server:app --host 0.0.0.0 --port 8000
     restart: unless-stopped
     depends_on:
       mongo:
@@ -35,7 +37,6 @@ services:
       - MONGO_URL=${MONGO_URL:-mongodb://mongo:27017/${DB_NAME:-relasi4warna}}
       - DB_NAME=${DB_NAME:-relasi4warna}
       - JWT_SECRET=${JWT_SECRET}
-      # UPDATE 1: Perbaikan format CORS
       - CORS_ORIGINS=${CORS_ORIGINS:-https://relasi4warna.com,http://localhost:3000}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL_PREMIUM=${OPENAI_MODEL_PREMIUM:-gpt-4o}
@@ -47,16 +48,14 @@ services:
       - MIDTRANS_CLIENT_KEY=${MIDTRANS_CLIENT_KEY}
       - MIDTRANS_MERCHANT_ID=${MIDTRANS_MERCHANT_ID}
       - MIDTRANS_IS_PRODUCTION=${MIDTRANS_IS_PRODUCTION:-False}
-      # UPDATE 2: Pastikan APP_URL HTTPS
       - APP_URL=${APP_URL:-https://relasi4warna.com}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - SENDER_EMAIL=${SENDER_EMAIL:-noreply@relasi4warna.com}
-      # UPDATE 3: Port Explicit
       - PORT=8000
     networks:
       - relasi4_network
     healthcheck:
-      # UPDATE 4: Ubah Healthcheck ke port 8000 agar sesuai Nginx
+      # URL Healthcheck sudah diperbaiki (tidak ada spasi)
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
@@ -80,7 +79,6 @@ services:
     networks:
       - relasi4_network
     healthcheck:
-      # Healthcheck ke port 80 (Internal Nginx Frontend)
       test: ["CMD", "curl", "-f", "http://localhost:80/health"]
       interval: 30s
       timeout: 10s
