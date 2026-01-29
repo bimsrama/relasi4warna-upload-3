@@ -6775,6 +6775,38 @@ async def seed_questions_for_series(series: str) -> List[dict]:
     
     return questions
 
+    # ... (kode sebelumnya: return questions)
+
+# === TEMPEL DI SINI ===
+async def seed_relasi4_defaults():
+    """Seed default data for RELASI4 premium features to prevent 500 errors"""
+    try:
+        # Cek collection relasi4_questions / sets
+        # Nama collection disesuaikan dengan logic di relasi4_routes.py
+        
+        # 1. Cek Question Sets
+        count_sets = await db.relasi4_question_sets.count_documents({})
+        if count_sets == 0:
+            logger.info("Seeding RELASI4 default question sets...")
+            default_set = {
+                "set_id": "relasi4_standard",
+                "title": "Standard Assessment",
+                "description": "Asesmen standar Relasi4Warna",
+                "active": True,
+                "is_default": True,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.relasi4_question_sets.insert_one(default_set)
+            
+        # 2. Cek Assessments/Questions jika perlu (opsional, tergantung logic router)
+        # Biasanya error 500 terjadi karena router mencoba fetch 'question_sets' tapi collection kosong/tidak ada.
+        
+    except Exception as e:
+        logger.warning(f"Relasi4 seeding warning (non-fatal): {e}")
+# ======================
+
+# (kode setelahnya: async def seed_admin_user(): ...)
+
 async def seed_admin_user():
     """Create default admin user"""
     admin_email = os.environ.get('ADMIN_EMAIL', 'admin@relasi4warna.com')
@@ -7649,6 +7681,19 @@ async def startup_event():
                     logger.info(f"Seeded questions for {series}")
             except Exception as e:
                 logger.warning(f"Could not seed {series} questions: {e}")
+
+                # ... (kode sebelumnya: loop for series in ...)
+
+        # === TEMPEL DI SINI ===
+        # [FIX] Seed Relasi4 specific data
+        logger.info("Checking Relasi4 data...")
+        await seed_relasi4_defaults()
+        # ======================
+        
+        logger.info(f"Application startup complete (total: {time.time() - start_time:.2f}s)")
+        
+    except Exception as e:
+        logger.warning(f"Startup initialization warning (non-fatal): {e}")
         
         logger.info(f"Application startup complete (total: {time.time() - start_time:.2f}s)")
         
