@@ -44,6 +44,10 @@ const Relasi4TeaserPage = () => {
   const [creatingFamily, setCreatingFamily] = useState(false);
   const [familyName, setFamilyName] = useState("");
   
+  // Midtrans State (FIXED: Dynamic Loading)
+  const [snapLoaded, setSnapLoaded] = useState(false);
+  const [midtransClientKey, setMidtransClientKey] = useState(null);
+  
   // Hesitation & Payment Resistance states
   const [showHesitation, setShowHesitation] = useState(false);
   const [hesitationMessage, setHesitationMessage] = useState(null);
@@ -89,10 +93,47 @@ const Relasi4TeaserPage = () => {
     return mapping[color] || 'conflict_attack';
   };
 
+  // --- FIXED: DYNAMIC MIDTRANS SCRIPT LOADING ---
+  useEffect(() => {
+    const loadSnapScript = async () => {
+      try {
+        // 1. Get client key & mode from backend
+        const response = await axios.get(`${API}/payment/client-key`);
+        const { client_key, is_production } = response.data;
+        setMidtransClientKey(client_key);
+
+        // 2. Check if script already loaded
+        if (document.getElementById('midtrans-snap-script')) {
+          setSnapLoaded(true);
+          return;
+        }
+
+        // 3. Inject script dynamically based on environment
+        const script = document.createElement('script');
+        script.id = 'midtrans-snap-script';
+        script.src = is_production
+          ? 'https://app.midtrans.com/snap/snap.js'         // PRODUCTION URL
+          : 'https://app.sandbox.midtrans.com/snap/snap.js'; // SANDBOX URL
+        
+        script.setAttribute('data-client-key', client_key);
+        script.onload = () => setSnapLoaded(true);
+        script.onerror = () => {
+          console.error("Failed to load Midtrans script");
+          toast.error("Gagal memuat sistem pembayaran");
+        };
+        document.body.appendChild(script);
+      } catch (err) {
+        console.error('Error loading Midtrans config:', err);
+      }
+    };
+
+    loadSnapScript();
+  }, []);
+  // --- END FIX ---
+
   useEffect(() => {
     fetchTeaser();
-    // Load Midtrans Snap script
-    loadMidtransScript();
+    
     // Track visit count
     const storedVisits = parseInt(localStorage.getItem(`relasi4_teaser_visits_${assessmentId}`) || '0');
     const newVisitCount = storedVisits + 1;
@@ -274,17 +315,6 @@ const Relasi4TeaserPage = () => {
     setShowExitIntent(false);
   }, []);
 
-  const loadMidtransScript = () => {
-    const existingScript = document.getElementById('midtrans-snap');
-    if (!existingScript) {
-      const script = document.createElement('script');
-      script.id = 'midtrans-snap';
-      script.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
-      script.setAttribute('data-client-key', 'SB-Mid-client-YOUR_KEY');
-      document.body.appendChild(script);
-    }
-  };
-
   const fetchTeaser = async () => {
     try {
       const response = await axios.get(`${API}/relasi4/free-teaser/${assessmentId}`);
@@ -304,6 +334,11 @@ const Relasi4TeaserPage = () => {
   };
 
   const handlePurchase = async () => {
+    if (!snapLoaded) {
+      toast.error(t("Sistem pembayaran belum siap, mohon tunggu sebentar...", "Payment system loading, please wait..."));
+      return;
+    }
+
     setProcessing(true);
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -725,361 +760,4 @@ const Relasi4TeaserPage = () => {
                   <Button 
                     size="sm"
                     variant="ghost"
-                    onClick={handleGenerateReport}
-                    disabled={generating || processing}
-                    className="text-xs text-muted-foreground"
-                    data-testid="generate-report-btn"
-                  >
-                    {generating ? (
-                      <>
-                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                        Membuat...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-3 h-3 mr-1" />
-                        Demo: Generate tanpa bayar
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Trust badges */}
-            <div className="flex items-center justify-center gap-4 mt-4 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Shield className="w-4 h-4 text-green-500" />
-                <span>Pembayaran Aman</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <CheckCircle className="w-4 h-4 text-blue-500" />
-                <span>Akses Instan</span>
-              </div>
-            </div>
-            
-            {/* Social Proof (enhanced on hesitation) */}
-            {!report && (
-              <div className="mt-4 pt-4 border-t border-amber-200/50">
-                <div className="flex flex-wrap justify-center gap-3 text-xs text-amber-700/70">
-                  {(showHesitation ? SOCIAL_PROOF_MESSAGES[language] : SOCIAL_PROOF_MESSAGES[language]?.slice(0, 2))?.map((msg, idx) => (
-                    <span key={idx} className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                      {msg}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Couple Compatibility Section */}
-        <Card className="mt-8 border-2 border-pink-500/30 bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950/20 dark:to-rose-950/20 shadow-xl" data-testid="couple-invite-card">
-          <CardContent className="p-6 md:p-8">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="p-3 bg-pink-500/20 rounded-full">
-                <Heart className="w-8 h-8 text-pink-600" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold mb-1" style={{ fontFamily: 'Merriweather, serif' }}>
-                  {t("Cek Kompatibilitas Pasangan", "Check Couple Compatibility")}
-                </h3>
-                <p className="text-muted-foreground">
-                  {t(
-                    "Undang pasanganmu untuk mengikuti quiz dan lihat seberapa cocok kalian!",
-                    "Invite your partner to take the quiz and see how compatible you are!"
-                  )}
-                </p>
-              </div>
-            </div>
-
-            {inviteLink ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 p-3 bg-background/80 rounded-xl">
-                  <Link2 className="w-5 h-5 text-pink-500 flex-shrink-0" />
-                  <input 
-                    type="text"
-                    value={inviteLink}
-                    readOnly
-                    className="flex-1 bg-transparent text-sm truncate outline-none"
-                  />
-                  <Button size="sm" variant="ghost" onClick={handleCopyInviteLink}>
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                </div>
-                
-                <div className="flex gap-3">
-                  <Button 
-                    onClick={handleShareWhatsApp}
-                    className="flex-1 bg-[#25D366] hover:bg-[#20BA59]"
-                  >
-                    <MessageCircle className="w-4 h-4 mr-2" />
-                    {t("Bagikan via WhatsApp", "Share via WhatsApp")}
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={handleCopyInviteLink}
-                    className="flex-1"
-                  >
-                    <Copy className="w-4 h-4 mr-2" />
-                    {t("Salin Link", "Copy Link")}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Button 
-                onClick={handleCreateCoupleInvite}
-                disabled={creatingInvite}
-                className="w-full bg-pink-500 hover:bg-pink-600 text-white h-12"
-                data-testid="create-couple-invite-btn"
-              >
-                {creatingInvite ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    {t("Membuat undangan...", "Creating invite...")}
-                  </>
-                ) : (
-                  <>
-                    <Heart className="w-5 h-5 mr-2" />
-                    {t("Undang Pasangan", "Invite Partner")}
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                  </>
-                )}
-              </Button>
-            )}
-
-            <p className="text-center text-xs text-muted-foreground mt-4">
-              {t(
-                "Laporan pasangan gratis setelah partner mengisi quiz!",
-                "Couple report is free after your partner completes the quiz!"
-              )}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Family Group Section */}
-        <Card className="mt-6 border-2 border-green-500/30 bg-gradient-to-br from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 shadow-xl" data-testid="family-invite-card">
-          <CardContent className="p-6 md:p-8">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="p-3 bg-green-500/20 rounded-full">
-                <Home className="w-8 h-8 text-green-600" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold mb-1" style={{ fontFamily: 'Merriweather, serif' }}>
-                  {t("Dinamika Keluarga", "Family Dynamics")}
-                </h3>
-                <p className="text-muted-foreground">
-                  {t(
-                    "Buat grup keluarga dan lihat bagaimana kepribadian kalian berinteraksi!",
-                    "Create a family group and see how your personalities interact!"
-                  )}
-                </p>
-              </div>
-            </div>
-
-            {familyGroupLink ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 p-3 bg-background/80 rounded-xl">
-                  <Link2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  <input 
-                    type="text"
-                    value={familyGroupLink}
-                    readOnly
-                    className="flex-1 bg-transparent text-sm truncate outline-none"
-                  />
-                  <Button size="sm" variant="ghost" onClick={handleCopyFamilyLink}>
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                </div>
-                
-                <div className="flex gap-3">
-                  <Button 
-                    onClick={handleShareFamilyWhatsApp}
-                    className="flex-1 bg-[#25D366] hover:bg-[#20BA59]"
-                  >
-                    <MessageCircle className="w-4 h-4 mr-2" />
-                    {t("Bagikan via WhatsApp", "Share via WhatsApp")}
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={handleCopyFamilyLink}
-                    className="flex-1"
-                  >
-                    <Copy className="w-4 h-4 mr-2" />
-                    {t("Salin Link", "Copy Link")}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    {t("Nama Keluarga (opsional)", "Family Name (optional)")}
-                  </label>
-                  <input
-                    type="text"
-                    value={familyName}
-                    onChange={(e) => setFamilyName(e.target.value)}
-                    placeholder="Keluarga Kita"
-                    className="w-full px-4 py-3 rounded-xl border bg-background focus:ring-2 focus:ring-green-500 outline-none"
-                  />
-                </div>
-                
-                <Button 
-                  onClick={handleCreateFamilyGroup}
-                  disabled={creatingFamily}
-                  className="w-full bg-green-500 hover:bg-green-600 text-white h-12"
-                  data-testid="create-family-group-btn"
-                >
-                  {creatingFamily ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      {t("Membuat grup...", "Creating group...")}
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="w-5 h-5 mr-2" />
-                      {t("Buat Grup Keluarga (3-6 anggota)", "Create Family Group (3-6 members)")}
-                      <ArrowRight className="w-5 h-5 ml-2" />
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
-
-            <p className="text-center text-xs text-muted-foreground mt-4">
-              {t(
-                "Minimal 3 anggota untuk menghasilkan laporan dinamika keluarga!",
-                "Minimum 3 members to generate family dynamics report!"
-              )}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Share & Retake */}
-        <div className="flex flex-wrap justify-center gap-4 mt-8">
-          <Button variant="outline" className="rounded-full" data-testid="share-btn">
-            <Share2 className="w-4 h-4 mr-2" />
-            {t("Bagikan Hasil", "Share Result")}
-          </Button>
-          <Button 
-            variant="outline" 
-            className="rounded-full"
-            onClick={() => navigate('/relasi4/leaderboard')}
-            data-testid="leaderboard-btn"
-          >
-            🏆 {t("Lihat Leaderboard", "View Leaderboard")}
-          </Button>
-          <Button 
-            variant="outline" 
-            className="rounded-full"
-            onClick={() => navigate('/relasi4')}
-            data-testid="retake-btn"
-          >
-            {t("Ambil Quiz Lagi", "Retake Quiz")}
-          </Button>
-        </div>
-      </main>
-      
-      {/* Exit Intent Modal */}
-      {showExitIntent && !report && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
-          data-testid="exit-intent-modal"
-        >
-          <div className="relative w-full max-w-lg bg-background rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-            {/* Gradient Header */}
-            <div 
-              className="h-24 relative"
-              style={{
-                background: `linear-gradient(135deg, ${primaryColor?.hex} 0%, ${secondaryColor?.hex} 100%)`
-              }}
-            >
-              <button 
-                onClick={dismissExitIntent}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
-                data-testid="exit-intent-close"
-              >
-                ✕
-              </button>
-            </div>
-            
-            {/* Content */}
-            <div className="p-6 text-center">
-              <div 
-                className="w-16 h-16 rounded-2xl mx-auto -mt-14 mb-4 flex items-center justify-center text-white text-2xl font-bold shadow-lg"
-                style={{ backgroundColor: primaryColor?.hex }}
-              >
-                {primaryColor?.archetype?.charAt(0)}
-              </div>
-              
-              <h3 className="text-xl font-bold mb-2" style={{ fontFamily: 'Merriweather, serif' }}>
-                {getExitIntentMessage().title}
-              </h3>
-              
-              <p className="text-muted-foreground mb-6 leading-relaxed">
-                {getExitIntentMessage().message}
-              </p>
-              
-              {/* Value Reminder */}
-              <div className="p-4 bg-amber-50 dark:bg-amber-950/30 rounded-xl mb-6 text-left">
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">
-                  {t("Yang akan Anda dapatkan:", "What you'll get:")}
-                </p>
-                <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-amber-500" />
-                    {t("Peta konflik & cara mengatasinya", "Conflict map & how to handle it")}
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-amber-500" />
-                    {t("Kebutuhan emosional tersembunyi", "Hidden emotional needs")}
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-amber-500" />
-                    {t("Tips komunikasi spesifik untuk tipe Anda", "Communication tips for your type")}
-                  </li>
-                </ul>
-              </div>
-              
-              {/* CTA Buttons */}
-              <div className="flex flex-col gap-3">
-                <Button 
-                  onClick={() => {
-                    dismissExitIntent();
-                    // Scroll to premium CTA
-                    premiumCtaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }}
-                  className="w-full bg-amber-500 hover:bg-amber-600 text-white"
-                  data-testid="exit-intent-cta"
-                >
-                  <Crown className="w-4 h-4 mr-2" />
-                  {t("Lihat Laporan Premium", "View Premium Report")} - {teaser.report_price_formatted}
-                </Button>
-                <Button 
-                  variant="ghost"
-                  onClick={dismissExitIntent}
-                  className="w-full text-muted-foreground"
-                  data-testid="exit-intent-dismiss"
-                >
-                  {t("Nanti saja, terima kasih", "Maybe later, thanks")}
-                </Button>
-              </div>
-              
-              {/* Urgency Note */}
-              <p className="text-xs text-muted-foreground mt-4">
-                {t(
-                  "💡 Pola yang tidak dipahami akan terus terulang dalam relasi berikutnya.",
-                  "💡 Patterns that aren't understood will keep repeating in future relationships."
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default Relasi4TeaserPage;
+                    onClick={handleGenerateReport
