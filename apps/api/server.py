@@ -7727,14 +7727,20 @@ api_router.include_router(deep_dive_router)
 api_router.include_router(analytics_router)
 api_router.include_router(system_router)
 
-# RELASI4™ Core Engine routes
-# Pastikan file routes/relasi4_routes.py memang ada. 
-# Jika file tersebut belum ada di folder Anda, hapus/comment baris import di bawah ini agar tidak error.
+RELASI4™ Core Engine routes
 try:
-    from routes.relasi4_routes import relasi4_router
+    # [FIX] Import set_dependencies juga
+    from routes.relasi4_routes import relasi4_router, set_dependencies
+    
+    # [FIX] Inject database & auth function ke router Relasi4
+    # Pastikan 'db' dan 'get_current_user' tersedia di scope ini
+    set_dependencies(db, get_current_user) 
+    
     api_router.include_router(relasi4_router)
 except ImportError:
     logger.warning("Module 'routes.relasi4_routes' not found, skipping.")
+except Exception as e:
+    logger.error(f"Error initializing Relasi4 routes: {e}")
 
 # 3. Masukkan router utama ke aplikasi FastAPI
 app.include_router(api_router)
